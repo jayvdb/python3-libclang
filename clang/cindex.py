@@ -1486,16 +1486,6 @@ class Cursor(Structure):
             for descendant in child.walk_preorder():
                 yield descendant
 
-    def walk_preorder(self):
-        """Depth-first preorder walk over the cursor and its descendants.
-
-        Yields cursors.
-        """
-        yield self
-        for child in self.get_children():
-            for descendant in child.walk_preorder():
-                yield descendant
-
     def get_tokens(self):
         """Obtain Token instances formulating that compose this Cursor.
 
