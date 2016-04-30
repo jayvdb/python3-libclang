@@ -155,7 +155,11 @@ class _CXString(Structure):
     @staticmethod
     def from_result(res, fn, args):
         assert isinstance(res, _CXString)
-        return conf.lib.clang_getCString(res).decode('utf-8')
+        s = conf.lib.clang_getCString(res)
+        if s:
+            return s.decode('utf-8')
+        else:
+            return s
 
     @property
     def spelling(self):
