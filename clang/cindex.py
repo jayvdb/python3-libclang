@@ -507,7 +507,6 @@ class TokenKind(object):
         setattr(TokenKind, name, kind)
 
 ### Cursor Kinds ###
-
 class BaseEnumeration:
     """
     Common base class for named enumerations held in sync with Index.h values.
@@ -1288,17 +1287,6 @@ class Cursor(Structure):
         return self._extent
 
     @property
-    def access_specifier(self):
-        """
-        Retrieves the access specifier (if any) of the entity pointed at by the
-        cursor.
-        """
-        if not hasattr(self, '_access_specifier'):
-            self._access_specifier = conf.lib.clang_getCXXAccessSpecifier(self)
-
-        return AccessSpecifier.from_id(self._access_specifier)
-
-    @property
     def storage_class(self):
         """
         Retrieves the storage class (if any) of the entity pointed at by the
@@ -1585,29 +1573,6 @@ class Cursor(Structure):
         res._tu = args[0]._tu
         return res
 
-### C++ access specifiers ###
-
-class AccessSpecifier(BaseEnumeration):
-    """
-    Describes the access of a C++ class member
-    """
-
-    # The unique kind objects, index by id.
-    _kinds = []
-    _name_map = None
-
-    def from_param(self):
-        return self.value
-
-    def __repr__(self):
-        return 'AccessSpecifier.%s' % (self.name,)
-
-AccessSpecifier.INVALID = AccessSpecifier(0)
-AccessSpecifier.PUBLIC = AccessSpecifier(1)
-AccessSpecifier.PROTECTED = AccessSpecifier(2)
-AccessSpecifier.PRIVATE = AccessSpecifier(3)
-AccessSpecifier.NONE = AccessSpecifier(4)
-
 class StorageClass(object):
     """
     Describes the storage class of a declaration
@@ -1757,35 +1722,8 @@ class RefQualifierKind(BaseEnumeration):
     _kinds = []
     _name_map = None
 
-    def __init__(self, value):
-        if value >= len(RefQualifierKind._kinds):
-            num_kinds = value - len(RefQualifierKind._kinds) + 1
-            RefQualifierKind._kinds += [None] * num_kinds
-        if RefQualifierKind._kinds[value] is not None:
-            raise ValueError('RefQualifierKind already loaded')
-        self.value = value
-        RefQualifierKind._kinds[value] = self
-        RefQualifierKind._name_map = None
-
     def from_param(self):
         return self.value
-
-    @property
-    def name(self):
-        """Get the enumeration name of this kind."""
-        if self._name_map is None:
-            self._name_map = {}
-            for key, value in RefQualifierKind.__dict__.items():
-                if isinstance(value, RefQualifierKind):
-                    self._name_map[value] = key
-        return self._name_map[self]
-
-    @staticmethod
-    def from_id(id):
-        if (id >= len(RefQualifierKind._kinds) or
-                RefQualifierKind._kinds[id] is None):
-            raise ValueError ('Unknown type kind %d' % id)
-        return RefQualifierKind._kinds[id]
 
     def __repr__(self):
         return 'RefQualifierKind.%s' % (self.name,)
@@ -2863,14 +2801,6 @@ class CompilationDatabase(ClangObject):
         return conf.lib.clang_CompilationDatabase_getAllCompileCommands(self)
 
 
-    def getAllCompileCommands(self):
-        """
-        Get an iterable object providing all the CompileCommands available from
-        the database.
-        """
-        return conf.lib.clang_CompilationDatabase_getAllCompileCommands(self)
-
-
 class Token(Structure):
     """Represents a single token from the preprocessor.
 
@@ -2937,11 +2867,6 @@ functionList = [
    [c_char_p, POINTER(c_uint)],
    c_object_p,
    CompilationDatabase.from_result),
-
-  ("clang_CompilationDatabase_getAllCompileCommands",
-   [c_object_p],
-   c_object_p,
-   CompileCommands.from_result),
 
   ("clang_CompilationDatabase_getAllCompileCommands",
    [c_object_p],
@@ -3611,7 +3536,7 @@ def register_functions(lib, ignore_errors):
         return register_function(lib, item, ignore_errors)
 
     for function in functionList:
-        register (function)
+        register(function)
 
 class Config:
     library_path = None

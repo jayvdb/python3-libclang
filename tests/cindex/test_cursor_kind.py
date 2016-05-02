@@ -38,10 +38,6 @@ def test_kind_groups():
                              'is_statement', 'is_invalid', 'is_attribute')
                  if getattr(k, n)()]
 
-        # _ATTR not supported in Clang 3.4
-        if k.value >= 400 and k.value < 500:
-            continue
-
         if k in (   CursorKind.TRANSLATION_UNIT,
                     CursorKind.MACRO_DEFINITION,
                     CursorKind.MACRO_INSTANTIATION,
@@ -49,6 +45,4 @@ def test_kind_groups():
                     CursorKind.PREPROCESSING_DIRECTIVE):
             assert len(group) == 0
         else:
-            if len(group) != 1:
-                print (k)
             assert len(group) == 1
