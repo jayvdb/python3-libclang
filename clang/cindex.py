@@ -159,7 +159,7 @@ class _CXString(Structure):
         if s:
             return s.decode('utf-8')
         else:
-            return s
+            return None
 
     @property
     def spelling(self):
