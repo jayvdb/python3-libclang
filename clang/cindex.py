@@ -371,6 +371,23 @@ class Diagnostic(object):
         return FixItIterator(self)
 
     @property
+    def children(self):
+        class ChildDiagnosticsIterator:
+            def __init__(self, diag):
+                self.diag_set = conf.lib.clang_getChildDiagnostics(diag)
+
+            def __len__(self):
+                return int(conf.lib.clang_getNumDiagnosticsInSet(self.diag_set))
+
+            def __getitem__(self, key):
+                diag = conf.lib.clang_getDiagnosticInSet(self.diag_set, key)
+                if not diag:
+                    raise IndexError
+                return Diagnostic(diag)
+
+        return ChildDiagnosticsIterator(self)
+
+    @property
     def category_number(self):
         """The category number for this diagnostic or 0 if unavailable."""
         return conf.lib.clang_getDiagnosticCategory(self)
@@ -564,7 +581,7 @@ class CursorKind(BaseEnumeration):
     @staticmethod
     def get_all_kinds():
         """Return all CursorKind enumeration instances."""
-        return list (filter(None, CursorKind._kinds))
+        return [x for x in CursorKind._kinds if x]
 
     def is_declaration(self):
         """Test if this is a declaration kind."""
@@ -1130,6 +1147,8 @@ CursorKind.MODULE_IMPORT_DECL = CursorKind(600)
 # A type alias template declaration
 CursorKind.TYPE_ALIAS_TEMPLATE_DECL = CursorKind(601)
 
+# A code completion overload candidate.
+CursorKind.OVERLOAD_CANDIDATE = CursorKind(700)
 ### Template Argument Kinds ###
 class TemplateArgumentKind(BaseEnumeration):
     """
@@ -1183,6 +1202,32 @@ class Cursor(Structure):
         function template that is declared 'const'.
         """
         return conf.lib.clang_CXXMethod_isConst(self)
+
+    def is_converting_constructor(self):
+        """Returns True if the cursor refers to a C++ converting constructor.
+        """
+        return conf.lib.clang_CXXConstructor_isConvertingConstructor(self)
+
+    def is_copy_constructor(self):
+        """Returns True if the cursor refers to a C++ copy constructor.
+        """
+        return conf.lib.clang_CXXConstructor_isCopyConstructor(self)
+
+    def is_default_constructor(self):
+        """Returns True if the cursor refers to a C++ default constructor.
+        """
+        return conf.lib.clang_CXXConstructor_isDefaultConstructor(self)
+
+    def is_move_constructor(self):
+        """Returns True if the cursor refers to a C++ move constructor.
+        """
+        return conf.lib.clang_CXXConstructor_isMoveConstructor(self)
+
+    def is_default_method(self):
+        """Returns True if the cursor refers to a C++ member function or member
+        function template that is declared '= default'.
+        """
+        return conf.lib.clang_CXXMethod_isDefaulted(self)
 
     def is_mutable_field(self):
         """Returns True if the cursor refers to a C++ field that is declared
@@ -1696,6 +1741,7 @@ TypeKind.DEPENDENT = TypeKind(26)
 TypeKind.OBJCID = TypeKind(27)
 TypeKind.OBJCCLASS = TypeKind(28)
 TypeKind.OBJCSEL = TypeKind(29)
+TypeKind.FLOAT128 = TypeKind(30)
 TypeKind.COMPLEX = TypeKind(100)
 TypeKind.POINTER = TypeKind(101)
 TypeKind.BLOCKPOINTER = TypeKind(102)
@@ -1715,6 +1761,7 @@ TypeKind.VARIABLEARRAY = TypeKind(115)
 TypeKind.DEPENDENTSIZEDARRAY = TypeKind(116)
 TypeKind.MEMBERPOINTER = TypeKind(117)
 TypeKind.AUTO = TypeKind(118)
+TypeKind.ELABORATED = TypeKind(119)
 
 class RefQualifierKind(BaseEnumeration):
     """Describes a specific ref-qualifier of a type."""
@@ -1912,6 +1959,12 @@ class Type(Structure):
         Retrieve the class type of the member pointer type.
         """
         return conf.lib.clang_Type_getClassType(self)
+
+    def get_named_type(self):
+        """
+        Retrieve the type named by the qualified-id.
+        """
+        return conf.lib.clang_Type_getNamedType(self)
 
     def get_align(self):
         """
@@ -2719,6 +2772,11 @@ class CompileCommand(object):
         return conf.lib.clang_CompileCommand_getDirectory(self.cmd)
 
     @property
+    def filename(self):
+        """Get the working filename for this CompileCommand"""
+        return conf.lib.clang_CompileCommand_getFilename(self.cmd)
+
+    @property
     def arguments(self):
         """
         Get an iterable object providing each argument in the
@@ -2900,6 +2958,11 @@ functionList = [
    _CXString,
    _CXString.from_result),
 
+  ("clang_CompileCommand_getFilename",
+   [c_object_p],
+   _CXString,
+   _CXString.from_result),
+
   ("clang_CompileCommand_getNumArgs",
    [c_object_p],
    c_uint),
@@ -2924,11 +2987,31 @@ functionList = [
    [Index, c_char_p],
    c_object_p),
 
+  ("clang_CXXConstructor_isConvertingConstructor",
+   [Cursor],
+   bool),
+
+  ("clang_CXXConstructor_isCopyConstructor",
+   [Cursor],
+   bool),
+
+  ("clang_CXXConstructor_isDefaultConstructor",
+   [Cursor],
+   bool),
+
+  ("clang_CXXConstructor_isMoveConstructor",
+   [Cursor],
+   bool),
+
   ("clang_CXXField_isMutable",
    [Cursor],
    bool),
 
   ("clang_CXXMethod_isConst",
+   [Cursor],
+   bool),
+
+  ("clang_CXXMethod_isDefaulted",
    [Cursor],
    bool),
 
@@ -3012,6 +3095,10 @@ functionList = [
    [Type],
    Type,
    Type.from_result),
+
+  ("clang_getChildDiagnostics",
+   [Diagnostic],
+   c_object_p),
 
   ("clang_getCompletionAvailability",
    [c_void_p],
@@ -3133,6 +3220,10 @@ functionList = [
    _CXString,
    _CXString.from_result),
 
+  ("clang_getDiagnosticInSet",
+   [c_object_p, c_uint],
+   c_object_p),
+
   ("clang_getDiagnosticLocation",
    [Diagnostic],
    SourceLocation),
@@ -3231,6 +3322,10 @@ functionList = [
    c_int),
 
   ("clang_getNumDiagnostics",
+   [c_object_p],
+   c_uint),
+
+  ("clang_getNumDiagnosticsInSet",
    [c_object_p],
    c_uint),
 
@@ -3492,6 +3587,11 @@ functionList = [
   ("clang_Type_getCXXRefQualifier",
    [Type],
    c_uint),
+
+  ("clang_Type_getNamedType",
+   [Type],
+   Type,
+   Type.from_result),
 
   ("clang_Type_visitFields",
    [Type, callbacks['fields_visit'], py_object],

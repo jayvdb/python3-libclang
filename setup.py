@@ -4,7 +4,7 @@
 from setuptools import setup
 
 setup(name="libclang-py3",
-      version="3.8.2",
+      version="3.9.0",
       description="Python3 bindings for libclang",
       url="https://bitbucket.org/Anteru/python3-libclang",
       download_url="https://bitbucket.org/Anteru/python3-libclang/releases",
