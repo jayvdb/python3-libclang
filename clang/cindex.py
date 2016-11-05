@@ -1543,6 +1543,7 @@ class Cursor(Structure):
     @staticmethod
     def from_result(res, fn, args):
         assert isinstance(res, Cursor)
+
         # FIXME: There should just be an isNull method.
         if res == conf.lib.clang_getNullCursor():
             return None
